@@ -1,7 +1,6 @@
 package dev.kamiql.database
 
 import java.lang.reflect.Type
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Base Repository
@@ -12,18 +11,14 @@ abstract class Repository<K: Any, V: Any>(
     open val vType: Type,
     open val debug: Boolean = false
 ): AutoCloseable {
-    protected val data = ConcurrentHashMap<K, V>()
+    protected val data = mutableMapOf<K, V>()
 
     abstract fun load()
-    abstract fun shutdown()
 
-    abstract fun save(key: K, value: V)
-    abstract fun delete(key: K)
+    protected abstract fun save(key: K, value: V)
+    protected abstract fun delete(key: K)
 
-    operator fun minus(key: K) {
-        data.remove(key)
-        delete(key)
-    }
+    open fun onFail() {}
 
     operator fun invoke(key: K): V? = data[key]
     operator fun get(key: K): V? = data[key]
@@ -46,10 +41,11 @@ abstract class Repository<K: Any, V: Any>(
         default
     }
 
-    fun mutate(key: K, mutation: (V) -> V) {
-        val newValue = mutation(data[key] ?: return)
+    fun mutate(key: K, mutation: (V?) -> V): V {
+        val newValue = mutation(data[key])
         data[key] = newValue
         save(key, newValue)
+        return newValue
     }
 
     abstract fun debug(message: String)

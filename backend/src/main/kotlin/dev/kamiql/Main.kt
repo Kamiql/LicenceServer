@@ -1,37 +1,45 @@
 package dev.kamiql
 
+import com.mongodb.ConnectionString
+import com.mongodb.MongoClientSettings
 import dev.kamiql.database.Database
-import dev.kamiql.security.auth.oauth.discord.model.OAuthState
-import dev.kamiql.security.auth.oauth.discord.routes.discord
-import dev.kamiql.security.sessions.model.UserSession
+import dev.kamiql.database.types.MongoRepository
+import dev.kamiql.api.auth.login
+import dev.kamiql.model.auth.discord.OAuthState
+import dev.kamiql.api.auth.discord.discord
+import dev.kamiql.api.user.user
+import dev.kamiql.repository.user.UserRepository
+import dev.kamiql.model.user.UserSession
+import dev.kamiql.util.data.cdnRoute
+import dev.kamiql.util.data.types.FileDataStorage
+import dev.kamiql.util.tasks.TaskScheduler
+import dev.kamiql.util.tasks.types.CommonScheduler
+import dev.kamiql.util.gson.GsonUtil
+import dev.kamiql.util.gson.gson
+import dev.kamiql.util.gson.serializers.GsonSessionSerializer
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.server.response.*
+import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
 import io.ktor.util.*
-import kotlinx.serialization.json.Json
-import org.koin.ktor.plugin.Koin
-import org.koin.logger.slf4jLogger
+import org.bson.UuidRepresentation
+import org.litote.kmongo.KMongo
 import org.slf4j.event.Level
 import java.io.File
-import java.util.*
+
+val taskScheduler: TaskScheduler = CommonScheduler()
 
 val applicationHttpClient = HttpClient(CIO) {
     install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
-        json(Json {
-            prettyPrint = false
-            isLenient = true
-            ignoreUnknownKeys = true
-        })
+        gson(ContentType.Application.Json, GsonUtil.gson())
     }
 }
 
@@ -41,27 +49,29 @@ fun main() {
 
 fun Application.main(http: HttpClient = applicationHttpClient) {
     install(CallLogging) {
-        level = Level.DEBUG
+        level = Level.INFO
         filter { true }
     }
 
     install(ContentNegotiation) {
-        json(Json {
-            prettyPrint = false
-            isLenient = true
-            ignoreUnknownKeys = true
-        })
+        gson(ContentType.Application.Json, GsonUtil.gson())
     }
 
-    install(Koin) {
-        slf4jLogger()
-        modules(
-
-        )
+    install(Sessions) {
+        val secretEncryptKey = hex("78777f03ea555e28c1f1693d2893c964")
+        val secretSignKey = hex("34a95b68a9f8f5b060450e362e0dfa0d")
+        cookie<UserSession>("USER_SESSION", directorySessionStorage(File("data/.sessions"))) {
+            serializer = GsonSessionSerializer(UserSession::class.java)
+            cookie.path = "/"
+            transform(SessionTransportTransformerEncrypt(secretEncryptKey, secretSignKey))
+        }
+        cookie<OAuthState>("OAUTH_STATE") {
+            serializer = GsonSessionSerializer(OAuthState::class.java)
+        }
     }
 
     install(Authentication) {
-        oauth("auth-oauth-discord") {
+        oauth(AuthType.OAUTH_DISCORD) {
             urlProvider = { "http://localhost:8080/api/callback" }
             providerLookup = {
                 OAuthServerSettings.OAuth2ServerSettings(
@@ -75,42 +85,57 @@ fun Application.main(http: HttpClient = applicationHttpClient) {
                 )
             }
             client = http
+            skipWhen { call -> call.sessions.get<UserSession>().isNotNull() }
         }
-    }
 
-    install(Sessions) {
-        val secretEncryptKey = hex("00112233445566778899aabbccddeeff")
-        val secretSignKey = hex("6819b57a326945c1968f45236589")
-        cookie<UserSession>("USER_SESSION", directorySessionStorage(File("data/.sessions"))) {
-            cookie.path = "/"
-            transform(SessionTransportTransformerEncrypt(secretEncryptKey, secretSignKey))
+        session<UserSession>(AuthType.SESSION) {
+            validate { session ->
+                val res = session.toUser().isNotNull()
+                println("Validating session for ${session.username} -> $res")
+                res
+            }
+            challenge {
+                println("Redirect to login")
+                call.respondRedirect("/app/login", true)
+            }
         }
-        cookie<OAuthState>("OAUTH_STATE")
     }
 
     install(Database) {
-        register(
+        val db = let {
+            val settings = MongoClientSettings.builder()
+                .uuidRepresentation(UuidRepresentation.STANDARD)
+                .applyConnectionString(ConnectionString(
+                    System.getenv("MONGO_URI")
+                ))
+                .build()
+            KMongo.createClient(settings)
+        }.getDatabase("app")
 
+        register(
+            UserRepository()
         )
+
+        provider<MongoRepository<*, *>> {
+            it.db = db
+            it.taskScheduler = taskScheduler
+        }
     }
 
     routing {
         route("/api") {
-            get("/login") {
-                val state = UUID.randomUUID().toString()
-                call.sessions.set(OAuthState(state))
-                val redirectUrl = URLBuilder("https://discord.com/oauth2/authorize").apply {
-                    parameters.append("response_type", "code")
-                    parameters.append("client_id", "1429752318961778707")
-                    parameters.append("redirect_uri", "http://localhost:8080/callback")
-                    parameters.append("scope", "identify email")
-                    parameters.append("state", state)
-                }.buildString()
-                call.respondRedirect(redirectUrl)
-            }
-
+            login()
             discord(http)
-            // github(http)
+            user()
         }
+
+        cdnRoute<FileDataStorage>(FileDataStorage("avatars",
+            "png",
+            "jpg",
+            "jpeg",
+            "svg",
+            "gif",
+            "webp"
+        ))
     }
 }

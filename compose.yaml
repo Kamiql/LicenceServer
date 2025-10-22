@@ -1,0 +1,45 @@
+services:
+  backend:
+    container_name: backend
+    build:
+      context: /
+      dockerfile: ./backend/Dockerfile
+    depends_on:
+      - mongodb
+    ports:
+      - "8080:8080"
+    env_file:
+      - backend/.env
+    networks:
+      - internal
+    volumes:
+      - backend:/data/backend
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: LCKyMmVzy517t4bV
+      MONGO_INITDB_DATABASE: app
+    command: ["mongod", "--bind_ip_all"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  mongo_data:
+    driver: local
+  mongo_config:
+    driver: local
+  backend:
+    driver: local

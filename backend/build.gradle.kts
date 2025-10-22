@@ -1,7 +1,8 @@
 plugins {
-    kotlin("jvm")
+    kotlin("jvm") version "2.3.0-Beta1"
     kotlin("plugin.serialization") version "2.3.0-Beta1"
-    id("io.ktor.plugin")
+    id("io.ktor.plugin") version "3.3.1"
+    id("com.gradleup.shadow") version "9.2.2"
     application
 }
 
@@ -17,7 +18,6 @@ val koinVersion = (project.properties["koinVersion"] ?: "4.1.0").toString()
 
 dependencies {
     implementation(platform("io.ktor:ktor-bom:$ktorVersion"))
-
     implementation("io.ktor:ktor-server-core")
     implementation("io.ktor:ktor-server-netty")
     implementation("io.ktor:ktor-server-auth")
@@ -28,14 +28,17 @@ dependencies {
     implementation("io.ktor:ktor-client-cio")
     implementation("io.ktor:ktor-server-call-logging")
     implementation("io.ktor:ktor-client-content-negotiation")
-    implementation("io.ktor:ktor-serialization-kotlinx-json")
+    implementation("io.ktor:ktor-serialization-gson")
 
-    implementation(project.dependencies.platform("io.insert-koin:koin-bom:$koinVersion"))
-    implementation("io.insert-koin:koin-core")
-    implementation("io.insert-koin:koin-ktor")
-    implementation("io.insert-koin:koin-logger-slf4j")
+    implementation("org.litote.kmongo:kmongo:4.10.0")
+
+    implementation("ch.qos.logback:logback-classic:1.5.13")
 }
 
 kotlin {
     jvmToolchain(21)
+}
+
+tasks.shadowJar {
+    archiveFileName = "backend.jar"
 }
