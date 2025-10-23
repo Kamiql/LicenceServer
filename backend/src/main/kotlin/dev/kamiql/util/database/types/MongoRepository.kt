@@ -1,10 +1,9 @@
-package dev.kamiql.database.types
+package dev.kamiql.util.database.types
 
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.UpdateOptions
-import dev.kamiql.database.Repository
-import dev.kamiql.dto.DTO
+import dev.kamiql.util.database.Repository
 import dev.kamiql.util.tasks.TaskScheduler
 import dev.kamiql.util.gson.toJson
 import dev.kamiql.util.gson.toObject
@@ -12,16 +11,24 @@ import org.litote.kmongo.*
 import java.lang.reflect.Type
 import java.time.Duration
 
-abstract class MongoRepository<K: Any, V: DTO<*>>(val name: String, override val kType: Type, override val vType: Type) : Repository<K, V>(kType, vType) {
+abstract class MongoRepository<K: Any, V: Any>(val name: String, override val kType: Type, override val vType: Type) : Repository<K, V>(kType, vType) {
     lateinit var db: MongoDatabase
     lateinit var collection: MongoCollection<DBObject>
     lateinit var taskScheduler: TaskScheduler
+
+    open fun onDataLoad() {
+        println("Loaded data for: $name")
+        data.forEach { (key, value) ->
+            println("$key: $value")
+        }
+    }
 
     override fun load() {
         collection = db.getCollection<DBObject>(name)
 
         taskScheduler.runSync {
             sync()
+            onDataLoad()
         }
 
         taskScheduler.runAsyncTimer(Duration.ofMinutes(5), Duration.ofMinutes(5)) {

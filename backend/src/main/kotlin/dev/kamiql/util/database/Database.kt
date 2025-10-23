@@ -1,5 +1,6 @@
-package dev.kamiql.database
+package dev.kamiql.util.database
 
+import dev.kamiql.repository.user.UserRepository
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.createApplicationPlugin

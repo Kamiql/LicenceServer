@@ -1,12 +1,29 @@
 package dev.kamiql.util.data
 
+import dev.kamiql.util.id.Snowflake
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import java.io.File
+import kotlin.jvm.Throws
+
+class StorageException(override val message: String?, val status: HttpStatusCode = HttpStatusCode.BadRequest) : Exception()
 
 abstract class DataStorage(val id: String) {
+    private val tokens = mutableMapOf<Snowflake, String>()
+
+    fun generateToken(snowflake: Snowflake): String {
+        return buildString {
+            val chars = "0123456789abcdef"
+            repeat(32) { append(chars.random()) }
+        }
+    }
+
+    fun evaluateToken(snowflake: Snowflake, token: String): Boolean {
+        return tokens.remove(snowflake, token)
+    }
+
     abstract fun resolvePath(path: String): File
 
     suspend fun serve(call: ApplicationCall, path: String) {
@@ -18,6 +35,7 @@ abstract class DataStorage(val id: String) {
         call.respondFile(file)
     }
 
+    @Throws(StorageException::class)
     fun save(path: String, data: ByteArray): File {
         val file = resolvePath(path)
         file.parentFile?.mkdirs()
@@ -36,12 +54,15 @@ abstract class DataStorage(val id: String) {
 
     fun getUrl(path: String): String? {
         val file = resolvePath(path)
-        return if (file.exists() && file.isFile) "/cdn/$id/$path" else null
+        return if (file.exists() && file.isFile) "/cdn/$id?file=$path" else null
     }
 
     fun fromUrl(url: String): String? {
-        val prefix = "/cdn/$id/"
-        return if (url.startsWith(prefix)) url.removePrefix(prefix) else null
+        val prefix = "/cdn/$id"
+        if (!url.startsWith(prefix)) return null
+        val queryIndex = url.indexOf("?file=")
+        if (queryIndex == -1) return null
+        return url.substring(queryIndex + 6)
     }
 
     companion object {
@@ -59,35 +80,5 @@ abstract class DataStorage(val id: String) {
 
         inline fun <reified T : DataStorage> find(id: String): DataStorage =
             type<T>().first { it.id == id }
-    }
-}
-
-inline fun <reified T: DataStorage> Route.cdnRoute(src: DataStorage) {
-    DataStorage.register(src, T::class.java)
-
-    get("/cdn/${src.id}") {
-        val fileName = call.request.queryParameters["file"]
-        if (fileName == null) {
-            call.respond(HttpStatusCode.BadRequest, "Missing 'file' query parameter")
-            return@get
-        }
-        try {
-            src.serve(call, fileName)
-        } catch (e: IllegalArgumentException) {
-            call.respond(HttpStatusCode.BadRequest, e.message ?: "Invalid file")
-        }
-    }
-
-    get("/cdn/${src.id}/list") {
-        val dir = File("data/${src.id}")
-        if (!dir.exists() || !dir.isDirectory) {
-            call.respond(emptyList<String>())
-            return@get
-        }
-        val files = dir.walkTopDown()
-            .filter { it.isFile }
-            .map { it.relativeTo(dir).path.replace("\\", "/") }
-            .toList()
-        call.respond(files)
     }
 }

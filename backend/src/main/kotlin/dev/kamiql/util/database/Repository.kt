@@ -1,4 +1,4 @@
-package dev.kamiql.database
+package dev.kamiql.util.database
 
 import java.lang.reflect.Type
 

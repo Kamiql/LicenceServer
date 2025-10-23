@@ -1,29 +1,22 @@
 package dev.kamiql.api.user
 
-import dev.kamiql.AuthType
-import dev.kamiql.model.user.UserSession
-import dev.kamiql.respondDTO
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.auth.authenticate
-import io.ktor.server.auth.principal
-import io.ktor.server.response.respond
+import dev.kamiql.model.user.groups.Group
+import dev.kamiql.repository.user.UserRepository
+import dev.kamiql.session
+import dev.kamiql.util.database.Repositories
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 
 fun Route.user() {
-    runCatching {
-        authenticate(AuthType.SESSION) {
-            route("/users") {
-                get("/@me") {
-                    val user = call.principal<UserSession>()!!.toUser() ?: run {
-                        return@get call.respond(HttpStatusCode.Unauthorized)
-                    }
+    route("/users") {
+        val users = Repositories.get<UserRepository>()
 
-                    call.respondDTO(user.toDTO())
-                }
+        get {
+            session(Group.ADMINISTRATOR) {
+
             }
         }
-    }.onFailure {it.printStackTrace()}
-
+    }
 }
+

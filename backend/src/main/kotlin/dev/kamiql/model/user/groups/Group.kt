@@ -9,6 +9,7 @@ enum class Group(
     val permissions: List<Permission>,
     val requires: List<String>
 ) {
+    OWNER("owner", Color.ORANGE.rgb, listOf(), listOf()),
     ADMINISTRATOR("admin", Color.RED.rgb, listOf(), listOf()),
     MODERATOR("moderator", Color.BLUE.rgb, listOf(), listOf()),
     USER("user", Color.GRAY.rgb, listOf(), listOf());

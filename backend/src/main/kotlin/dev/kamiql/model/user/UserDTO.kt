@@ -4,6 +4,7 @@ import dev.kamiql.dto.DTO
 import dev.kamiql.model.user.groups.Group
 import dev.kamiql.util.data.DataStorage
 import dev.kamiql.util.data.types.FileDataStorage
+import dev.kamiql.util.gson.toJson
 import dev.kamiql.util.id.snowflake
 
 class UserDTO(
@@ -26,4 +27,6 @@ class UserDTO(
             groups.map { id -> Group.entries.first { it.id == id } }
         )
     }
+
+    override fun toString(): String = this.toJson()
 }

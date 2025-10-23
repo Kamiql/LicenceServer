@@ -2,7 +2,7 @@ package dev.kamiql.model.user
 
 import dev.kamiql.dto.DTOConvertible
 import dev.kamiql.model.user.groups.Group
-import dev.kamiql.model.user.UserSession
+import dev.kamiql.model.session.UserSession
 import dev.kamiql.util.data.DataStorage
 import dev.kamiql.util.data.types.FileDataStorage
 import dev.kamiql.util.id.types.UserSnowflake
