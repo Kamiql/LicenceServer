@@ -20,6 +20,11 @@ abstract class Repository<K: Any, V: Any>(
 
     open fun onFail() {}
 
+    fun remove(key: K) {
+        data.remove(key)
+        delete(key)
+    }
+
     operator fun invoke(key: K): V? = data[key]
     operator fun get(key: K): V? = data[key]
 
@@ -47,6 +52,10 @@ abstract class Repository<K: Any, V: Any>(
         save(key, newValue)
         return newValue
     }
+
+    fun values(): List<V> = data.values.toList()
+
+    fun keys(): List<K> = data.keys.toList()
 
     abstract fun debug(message: String)
 }

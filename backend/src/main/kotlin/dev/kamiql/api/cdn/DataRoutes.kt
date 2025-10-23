@@ -15,7 +15,7 @@ import java.io.File
 inline fun <reified T : DataStorage> Route.cdnRoute(src: DataStorage) {
     DataStorage.register(src, T::class.java)
 
-    route("/api/cdn/${src.id}") {
+    route("/cdn/${src.id}") {
         get("/{file}") {
             val fileName = call.parameters["file"] ?:
             return@get call.respond(HttpStatusCode.BadRequest, "Missing file parameter")

@@ -17,10 +17,7 @@ abstract class MongoRepository<K: Any, V: Any>(val name: String, override val kT
     lateinit var taskScheduler: TaskScheduler
 
     open fun onDataLoad() {
-        println("Loaded data for: $name")
-        data.forEach { (key, value) ->
-            println("$key: $value")
-        }
+
     }
 
     override fun load() {

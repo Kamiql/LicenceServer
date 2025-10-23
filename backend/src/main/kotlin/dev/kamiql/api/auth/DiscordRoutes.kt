@@ -49,22 +49,11 @@ fun Route.discord(http: HttpClient, redirects: MutableMap<String, String>) {
                 Repositories.get<UserRepository>().getOrCreate(session)
 
                 val redirect = redirects[state] ?: run {
-                    call.respondRedirect("/api/users/@me", true)
+                    call.respondRedirect("http://localhost:5173/", true)
                     return@get
                 }
 
                 call.respondRedirect(redirect)
-            }
-        }
-
-        get("/logout") {
-            call.sessions.set<UserSession>(null)
-            return@get call.respondRedirect("/")
-        }
-
-        get("/@me") {
-            session { user ->
-                call.respondDTO(user.toDTO())
             }
         }
     }

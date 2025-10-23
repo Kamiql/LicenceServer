@@ -3,8 +3,14 @@ import axios, { type AxiosInstance } from "axios";
 export class RestApi {
     protected client: AxiosInstance;
 
-    constructor(baseURL: string) {
+    constructor(baseURL: string = import.meta.env.VITE_API_BASE_URL) {
+        console.log(baseURL);
         this.client = axios.create({ baseURL });
+    }
+
+    protected redirect(url: string) {
+        const baseURL = this.client.defaults.baseURL || '';
+        window.location.href = `${baseURL}${url}`;
     }
 
     protected get<T>(url: string, config?: any) {

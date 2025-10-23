@@ -1,25 +1,27 @@
 package dev.kamiql.model.user.groups
 
-import dev.kamiql.model.user.permissions.Permission
 import java.awt.Color
 
 enum class Group(
     val id: String,
     val color: Int,
-    val permissions: List<Permission>,
-    val requires: List<String>
+    val requires: List<String>,
+    val childs: List<Group> = listOf()
 ) {
-    OWNER("owner", Color.ORANGE.rgb, listOf(), listOf()),
-    ADMINISTRATOR("admin", Color.RED.rgb, listOf(), listOf()),
-    MODERATOR("moderator", Color.BLUE.rgb, listOf(), listOf()),
-    USER("user", Color.GRAY.rgb, listOf(), listOf());
+    USER("user", Color.GRAY.rgb, listOf()),
+    MODERATOR("moderator", Color.BLUE.rgb, listOf(), listOf(USER)),
+    ADMINISTRATOR("admin", Color.RED.rgb, listOf(), listOf(MODERATOR)),
+    OWNER("owner", Color.ORANGE.rgb, listOf(), listOf(USER, MODERATOR, ADMINISTRATOR));
 
-    fun hasPermission(perm: Permission): Boolean = permissions.contains(perm)
     fun canGrant(userGroups: List<Group>): Boolean = requires.all { it in userGroups.map { it.id } }
 
+    fun hasOrInherits(group: Group): Boolean {
+        if (this == OWNER) return true
+        if (this == group) return true
+        return childs.any { it.hasOrInherits(group) }
+    }
+
     companion object {
-        fun default(): List<Group> {
-            return listOf(USER)
-        }
+        fun default(): List<Group> = listOf(USER)
     }
 }

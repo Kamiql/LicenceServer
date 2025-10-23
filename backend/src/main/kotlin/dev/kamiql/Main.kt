@@ -2,6 +2,7 @@ package dev.kamiql
 
 import com.mongodb.ConnectionString
 import com.mongodb.MongoClientSettings
+import dev.kamiql.api.auth.basicAuth
 import dev.kamiql.util.database.Database
 import dev.kamiql.util.database.types.MongoRepository
 import dev.kamiql.api.auth.discord
@@ -26,6 +27,7 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
 import io.ktor.util.hex
@@ -90,7 +92,7 @@ fun Application.main(http: HttpClient = applicationHttpClient) {
     val redirects = mutableMapOf<String, String>()
     install(Authentication) {
         oauth(AuthType.OAUTH_DISCORD) {
-            urlProvider = { "http://localhost:8080/api/callback" }
+            urlProvider = { "http://localhost:8080/api/auth/discord/callback" }
             providerLookup = {
                 OAuthServerSettings.OAuth2ServerSettings(
                     name = "discord",
@@ -113,7 +115,22 @@ fun Application.main(http: HttpClient = applicationHttpClient) {
 
     routing {
         route("/api") {
-            discord(http, redirects)
+            route("/auth") {
+                discord(http, redirects)
+                basicAuth()
+
+                get("/logout") {
+                    call.sessions.set<UserSession>(null)
+                    return@get call.respondRedirect("/")
+                }
+
+                get("/me") {
+                    session { user ->
+                        call.respondDTO(user.toDTO())
+                    }
+                }
+            }
+
             user()
 
             cdnRoute<FileDataStorage>(FileDataStorage("avatars",
