@@ -5,19 +5,22 @@ import com.mongodb.MongoClientSettings
 import dev.kamiql.api.auth.basicAuth
 import dev.kamiql.util.database.Database
 import dev.kamiql.util.database.types.MongoRepository
-import dev.kamiql.api.auth.discord
 import dev.kamiql.api.cdn.cdnRoute
 import dev.kamiql.api.user.user
 import dev.kamiql.util.database.Repositories
 import dev.kamiql.model.session.SessionStorage
 import dev.kamiql.repository.user.UserRepository
 import dev.kamiql.model.session.UserSession
+import dev.kamiql.model.user.User
+import dev.kamiql.model.verification.PendingVerification
+import dev.kamiql.repository.verification.VerificationRepository
 import dev.kamiql.util.data.types.FileDataStorage
 import dev.kamiql.util.tasks.TaskScheduler
 import dev.kamiql.util.tasks.types.CommonScheduler
 import dev.kamiql.util.gson.GsonUtil
 import dev.kamiql.util.gson.gson
 import dev.kamiql.util.gson.serializers.GsonSessionSerializer
+import dev.kamiql.util.id.newSnowflake
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.http.*
@@ -27,6 +30,8 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
@@ -70,7 +75,8 @@ fun Application.main(http: HttpClient = applicationHttpClient) {
 
         register(
             UserRepository(),
-            SessionStorage()
+            SessionStorage(),
+            VerificationRepository()
         )
 
         provider<MongoRepository<*, *>> {
@@ -89,45 +95,46 @@ fun Application.main(http: HttpClient = applicationHttpClient) {
         }
     }
 
-    val redirects = mutableMapOf<String, String>()
     install(Authentication) {
-        oauth(AuthType.OAUTH_DISCORD) {
-            urlProvider = { "http://localhost:8080/api/auth/discord/callback" }
-            providerLookup = {
-                OAuthServerSettings.OAuth2ServerSettings(
-                    name = "discord",
-                    authorizeUrl = "https://discord.com/oauth2/authorize",
-                    accessTokenUrl = "https://discord.com/api/oauth2/token",
-                    requestMethod = HttpMethod.Post,
-                    clientId = "1429752318961778707",
-                    clientSecret = "bGBQNyPDeBoU5Cx3f2LF0eCJFtt8Y8In",
-                    defaultScopes = listOf("identify","email"),
-                    onStateCreated = { call, state ->
-                        call.request.queryParameters["redirectUrl"]?.let {
-                            redirects[state] = it
-                        }
-                    }
-                )
-            }
-            client = http
-        }
+
     }
 
     routing {
         route("/api") {
             route("/auth") {
-                discord(http, redirects)
                 basicAuth()
 
                 get("/logout") {
-                    call.sessions.set<UserSession>(null)
-                    return@get call.respondRedirect("/")
+                    call.sessionId?.let { Repositories.get<SessionStorage>().invalidate(it) }
+                    call.sessions.clear<UserSession>()
+                    return@get call.respond(HttpStatusCode.OK)
                 }
 
                 get("/me") {
                     session { user ->
                         call.respondDTO(user.toDTO())
                     }
+                }
+
+                post("/verify") {
+                    data class VerifyRequest(val id: String)
+
+                    val request = call.receive<VerifyRequest>()
+                    val pending = Repositories.get<VerificationRepository>()[request.id]
+                        ?: return@post call.respond(HttpStatusCode.NotFound, "Invalid verification token")
+
+                    val users = Repositories.get<UserRepository>()
+                    val session = UserSession(
+                        newSnowflake(),
+                        pending.name,
+                        pending.email
+                    )
+
+                    users[session.id.value] = User.new(session, pending.password).toDTO()
+
+                    Repositories.get<VerificationRepository>().remove(pending.id)
+
+                    call.frontend("login")
                 }
             }
 

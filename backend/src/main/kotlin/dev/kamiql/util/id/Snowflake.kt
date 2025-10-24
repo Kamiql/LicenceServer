@@ -16,6 +16,14 @@ abstract class Snowflake(val value: Long) {
 
     companion object {
         const val DISCORD_EPOCH = 1420070400000L
+
+        fun generate(): Long {
+            val timestamp = System.currentTimeMillis() - DISCORD_EPOCH
+            val workerId = (Math.random() * 32).toLong() and 0x1F
+            val processId = (Math.random() * 32).toLong() and 0x1F
+            val increment = (Math.random() * 4096).toLong() and 0xFFF
+            return (timestamp shl 22) or (workerId shl 17) or (processId shl 12) or increment
+        }
     }
 }
 
@@ -26,4 +34,8 @@ inline fun <reified T : Snowflake> snowflake(value: Long): T {
 
 inline fun <reified T : Snowflake> snowflake(value: String): T {
     return T::class.constructors.first().call(value.toLong())
+}
+
+inline fun <reified T : Snowflake> newSnowflake(): T {
+    return T::class.constructors.first().call(Snowflake.generate())
 }

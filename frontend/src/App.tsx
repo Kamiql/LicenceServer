@@ -1,13 +1,14 @@
 import { BrowserRouter } from 'react-router-dom';
 import Router from './Router';
+import { UserProvider } from './logic/context/UserContext.tsx';
 import './global.css';
 
-function App() {
+export default function App() {
     return (
-        <BrowserRouter>
-            <Router />
-        </BrowserRouter>
+        <UserProvider>
+            <BrowserRouter>
+                <Router />
+            </BrowserRouter>
+        </UserProvider>
     );
-}
-
-export default App;
+};

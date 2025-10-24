@@ -1,130 +1,133 @@
-import { useState, useEffect } from 'react';
-import { UserApi } from "../../logic/auth/UserApi.ts";
-import { User } from "../../model/User.ts";
+import { useState } from 'react';
+import {
+    Box,
+    Typography,
+    Card,
+    CardContent,
+    Drawer,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText
+} from '@mui/material';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faChartBar,
+    faFolder,
+    faProjectDiagram,
+    faBuilding,
+    faStar,
+    faCog,
+} from '@fortawesome/free-solid-svg-icons';
+import Header from '../layout/Header.tsx';
+import {useUser} from "../../logic/context/UserContext.tsx";
+
+const drawerWidth = 240;
 
 export default function Home() {
-    const [user, setUser] = useState<User | null>(null);
+    const { user } = useUser();
+
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
-    useEffect(() => {
-        new UserApi().profile()
-            .then(setUser)
-            .catch(() => setUser(new User(
-                15101519100019,
-                "kamiql",
-                "kilian.aqua@gmail.com"
-            )));
-    }, []);
+    const menuItems = [
+        { text: 'Dashboard', icon: faChartBar, href: '/dashboard' },
+        { text: 'Repositories', icon: faFolder, href: '/repositories' },
+        { text: 'Projects', icon: faProjectDiagram, href: '/projects' },
+        { text: 'Organizations', icon: faBuilding, href: '/organizations' },
+        { text: 'Stars', icon: faStar, href: '/stars' },
+        { text: 'Settings', icon: faCog, href: '/settings' },
+    ];
 
     return (
-        <>
-            {/* Header */}
-            <header className="header">
-                <div className="header-left">
-                    <img src="/logo.png" alt="Logo" className="logo" />
-                    <span style={{ fontSize: '20px', fontWeight: '600' }}>ShitCup</span>
-                </div>
+        <Box sx={{ display: 'flex' }}>
+            <Header user={user} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
-                <div className="header-right">
-                    {user ? (
-                        <>
-                            <div className="user-info">
-                                <img
-                                    src={user.avatar || '/vite.svg'}
-                                    alt="Avatar"
-                                    className="avatar"
-                                />
-                                <span>{user.username}</span>
-                            </div>
-                            <button
-                                className="burger-menu"
-                                onClick={() => setSidebarOpen(!sidebarOpen)}
-                            >
-                                ☰
-                            </button>
-                        </>
-                    ) : (
-                        <a href="/login">
-                            <button>Login</button>
-                        </a>
-                    )}
-                </div>
-            </header>
+            {/* Sidebar */}
+            <Drawer
+                variant="persistent"
+                open={sidebarOpen}
+                sx={{
+                    width: drawerWidth,
+                    flexShrink: 0,
+                    '& .MuiDrawer-paper': {
+                        width: drawerWidth,
+                        boxSizing: 'border-box',
+                        backgroundColor: 'var(--secondary-bg)',
+                        borderRight: '1px solid var(--border)',
+                        color: 'var(--text-primary)',
+                        marginTop: '64px',
+                    },
+                }}
+            >
+                <List sx={{ marginTop: '16px' }}>
+                    {menuItems.map((item) => (
+                        <ListItem
+                            key={item.text}
+                            component="a"
+                            href={item.href}
+                            sx={{
+                                color: 'var(--text-secondary)',
+                                textDecoration: 'none',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                    color: 'var(--text-primary)',
+                                },
+                            }}
+                        >
+                            <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
+                                <FontAwesomeIcon icon={item.icon} />
+                            </ListItemIcon>
+                            <ListItemText primary={item.text} />
+                        </ListItem>
+                    ))}
+                </List>
+            </Drawer>
 
             {/* Main Content */}
-            <div className="main-container">
-                {/* Sidebar */}
-                {sidebarOpen && (
-                    <aside className="sidebar">
-                        <nav className="sidebar-nav">
-                            <a href="/dashboard" className="sidebar-item active">
-                                <span>📊</span>
-                                Dashboard
-                            </a>
-                            <a href="/repositories" className="sidebar-item">
-                                <span>📁</span>
-                                Repositories
-                            </a>
-                            <a href="/projects" className="sidebar-item">
-                                <span>🗂️</span>
-                                Projects
-                            </a>
-                            <a href="/organizations" className="sidebar-item">
-                                <span>🏢</span>
-                                Organizations
-                            </a>
-                            <a href="/stars" className="sidebar-item">
-                                <span>⭐</span>
-                                Stars
-                            </a>
-                            <a href="/settings" className="sidebar-item">
-                                <span>⚙️</span>
-                                Settings
-                            </a>
-                        </nav>
-                    </aside>
-                )}
+            <Box
+                component="main"
+                sx={{
+                    flexGrow: 1,
+                    p: 3,
+                    marginLeft: sidebarOpen ? 0 : `-${drawerWidth}px`,
+                    transition: (theme) => theme.transitions.create('margin', {
+                        easing: theme.transitions.easing.sharp,
+                        duration: theme.transitions.duration.leavingScreen,
+                    }),
+                    marginTop: '64px',
+                }}
+            >
+                <Box sx={{ maxWidth: '800px' }}>
+                    <Typography variant="h4" gutterBottom sx={{ color: 'var(--text-primary)' }}>
+                        Welcome to GitBucket
+                    </Typography>
+                    <Typography
+                        variant="body1"
+                        gutterBottom
+                        sx={{ color: 'var(--text-secondary)', mb: 3 }}
+                    >
+                        {user
+                            ? `Hello ${user.username}! Welcome back to your dashboard.`
+                            : 'Please log in to access all features and manage your projects.'
+                        }
+                    </Typography>
 
-                {/* Content */}
-                <main className="content" style={{
-                    marginLeft: sidebarOpen ? 'var(--sidebar-width)' : '0'
-                }}>
-                    <div style={{ maxWidth: '800px' }}>
-                        <h1 style={{ marginBottom: '16px' }}>Welcome to ShitCup</h1>
-                        <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-                            {user
-                                ? `Hello ${user.username}! Welcome back to your dashboard.`
-                                : 'Please log in to access all features and manage your projects.'
-                            }
-                        </p>
-
-                        {user && (
-                            <div style={{
-                                background: 'var(--secondary-bg)',
-                                padding: '24px',
-                                borderRadius: '8px',
+                    {user && (
+                        <Card
+                            sx={{
+                                backgroundColor: 'var(--secondary-bg)',
                                 border: '1px solid var(--border)'
-                            }}>
-                                <h2 style={{ marginBottom: '16px' }}>Quick Stats</h2>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                                    <div>
-                                        <h3 style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Repositories</h3>
-                                        <p style={{ fontSize: '24px', fontWeight: 'bold' }}>0</p>
-                                    </div>
-                                    <div>
-                                        <h3 style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Projects</h3>
-                                        <p style={{ fontSize: '24px', fontWeight: 'bold' }}>0</p>
-                                    </div>
-                                    <div>
-                                        <h3 style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Organizations</h3>
-                                        <p style={{ fontSize: '24px', fontWeight: 'bold' }}>0</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </main>
-            </div>
-        </>
+                            }}
+                        >
+                            <CardContent>
+                                <Typography variant="h5" gutterBottom sx={{ color: 'var(--text-primary)' }}>
+                                    Quick Stats
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    )}
+                </Box>
+            </Box>
+        </Box>
     );
 }

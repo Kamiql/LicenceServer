@@ -33,6 +33,11 @@ dependencies {
     implementation("org.litote.kmongo:kmongo:4.10.0")
 
     implementation("ch.qos.logback:logback-classic:1.5.13")
+
+    implementation("org.mindrot:jbcrypt:0.4")
+
+    implementation("com.vladsch.flexmark:flexmark-all:0.64.8")
+    implementation("com.sun.mail:jakarta.mail:2.0.1")
 }
 
 kotlin {
